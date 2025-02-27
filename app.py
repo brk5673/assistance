@@ -9,24 +9,29 @@ import json
 load_dotenv()
 
 class EventHandler(AssistantEventHandler):    
-    """
-    EventHandler class that handles various events related to text creation, text delta, tool calls, and actions required by the assistant.
-    Methods:
-        on_text_created(text: str) -> None:
-            Handles the event when text is created by the assistant. Prints the assistant prompt.
-        on_text_delta(delta, snapshot) -> None:
-            Handles the event when there is a change in the text. Prints the delta value.
-        on_event(event) -> None:
-            Handles general events. Specifically processes events that require action by the assistant.
-        on_tool_call_created(tool_call) -> None:
-            Handles the event when a tool call is created. Prints the type of tool call.
-        on_tool_call_delta(delta, snapshot) -> None:
-            Handles the event when there is a change in the tool call. Specifically processes code interpreter inputs and outputs.
-        handle_requires_action(data, run_id) -> None:
-            Processes actions required by the assistant. Retrieves product information or stock based on the tool calls and prepares the outputs.
-        submit_tool_outputs(tool_outputs, run_id) -> None:
-            Submits the tool outputs using the submit_tool_outputs_stream helper.
-    """
+    """ Manejador de eventos para el asistente de compras """
+    @staticmethod
+    def get_product_info(product_name):
+        """ Devuelve la información de un producto o un mensaje si no existe """
+        product = next((item for item in catalog if item["Name"].lower() == product_name.lower()), None)
+        if product:
+            return f"The product is {product['Name']} with description: {product['Description']} and price: {product['Price']}."
+        return "Product not found."
+
+    @staticmethod
+    def get_product_stock(product_name):
+        """ Devuelve la disponibilidad de stock de un producto """
+        product = next((item for item in catalog if item["Name"].lower() == product_name.lower()), None)
+        if product:
+            return f"The product {product['Name']} is in stock with availability: {product['Stock_availabiility']}."
+        return "Product not found."
+
+    @staticmethod
+    def get_all_products():
+        """ Devuelve la lista de productos disponibles """
+        products = [product["Name"] for product in catalog]
+        return f"The available products are: {', '.join(products)}."
+    
     @override
     def on_text_created(self, text) -> None:
         print(f"\nassistant > ", end="", flush=True)
@@ -187,17 +192,17 @@ with client.beta.threads.runs.stream(
 ) as stream:
   stream.until_done()
 
-
-while True:
-    user_input = input("\nuser > ")
-    if user_input.strip().upper() == "END":
-        print("Chat is finished.")
-        break
-    response =client.beta.threads.messages.create(thread.id, role="user", content=user_input)
-    with client.beta.threads.runs.stream(
-        thread_id= thread.id,
-        assistant_id=assistant.id,
-        event_handler=EventHandler(),
-        additional_instructions="You should help the user find the right product to buy and provide the information requested, you couldnt talk for another topics .",
-    ) as stream:
-        stream.until_done()
+if __name__ == "__main__":
+    while True:
+        user_input = input("\nuser > ")
+        if user_input.strip().upper() == "END":
+            print("Chat is finished.")
+            break
+        response =client.beta.threads.messages.create(thread.id, role="user", content=user_input)
+        with client.beta.threads.runs.stream(
+            thread_id= thread.id,
+            assistant_id=assistant.id,
+            event_handler=EventHandler(),
+            additional_instructions="You should help the user find the right product to buy and provide the information requested, you couldnt talk for another topics .",
+        ) as stream:
+            stream.until_done()
